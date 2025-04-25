@@ -1,8 +1,9 @@
 
 
-#### Pandas Time: 0.0600s
-#### Modin Time: 0.0320s
-#### Polars Time: 0.1246s
+### Pandas Time: 0.0571s
+### Modin Time: 0.0364s
+### Polars Time: 0.2624s
+### FireDucks (Pandas) Time: 0.0841s
 
+![image](https://github.com/user-attachments/assets/baa04a28-2e7e-44ec-bbb0-bdf9b8c12825)
 
-![image](https://github.com/user-attachments/assets/c3d42e09-5002-4a65-90a9-4a90e50d59e5)
