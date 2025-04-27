@@ -1,8 +1,9 @@
+# Set Modin engine before importing modin
 import os
-os.environ["MODIN_ENGINE"] = "ray"  # Set before importing modin
+os.environ["MODIN_ENGINE"] = "ray"
 
 # Install dependencies
-!pip install modin[ray] ray polars fireducks
+!pip install modin[ray] ray polars fireducks matplotlib
 
 # Imports
 import pandas as pd
@@ -12,14 +13,24 @@ import numpy as np
 import ray
 import time
 import matplotlib.pyplot as plt
+
 import fireducks
 from fireducks.core import get_fireducks_options
 
-# Init FireDucks Benchmark Mode
-get_fireducks_options().set_benchmark_mode(True)
+# ── FireDucks “Benchmark Mode” Setup ────────────────────────────────────────────
+# 1) Grab the options object
+fireducks_options = get_fireducks_options()
+# 2) Enable benchmark mode
+fireducks_options.set_benchmark_mode(True)
+# 3) Helper to force any lazy computation
+def evaluate(df):
+    try:
+        df._evaluate()
+    except AttributeError:
+        pass
+# ────────────────────────────────────────────────────────────────────────────────
 
-
-# Sample data
+# Sample data creation
 num_rows = 10**6
 num_cols = 5
 data = np.random.randn(num_rows, num_cols)
@@ -30,42 +41,32 @@ pandas_df = pd.DataFrame(data, columns=columns)
 modin_df = mpd.DataFrame(data, columns=columns)
 polars_df = pl.DataFrame(data, schema=columns)
 
-# Evaluate function
-def evaluate(df):
-    try:
-        df._evaluate()
-    except AttributeError:
-        pass
+# Benchmark helper
+def benchmark_mean(df):
+    start = time.time()
+    result = df.mean()
+    evaluate(df)
+    return time.time() - start
 
-# Benchmarking
-start_time = time.time()
-pandas_mean = pandas_df.mean()
-pandas_time = time.time() - start_time
+# Run benchmarks
+pandas_time     = benchmark_mean(pandas_df)
+modin_time      = benchmark_mean(modin_df)
+polars_time     = benchmark_mean(polars_df)
+fireducks_time  = benchmark_mean(pandas_df)  # FireDucks instruments pandas_df
 
-start_time = time.time()
-modin_mean = modin_df.mean()
-modin_time = time.time() - start_time
+# Print results
+print(f"Pandas Time:            {pandas_time:.4f} seconds")
+print(f"Modin Time:             {modin_time:.4f} seconds")
+print(f"Polars Time:            {polars_time:.4f} seconds")
+print(f"FireDucks (Pandas) Time:{fireducks_time:.4f} seconds")
 
-start_time = time.time()
-polars_mean = polars_df.mean()
-polars_time = time.time() - start_time
-
-# FireDucks works by automatically instrumenting Pandas/Modin
-start_time = time.time()
-fireducks_mean = pandas_df.mean()  # This is tracked since benchmark mode is ON
-evaluate(pandas_df)
-fireducks_time = time.time() - start_time
-
-# Results
-print(f"Pandas Time: {pandas_time:.4f}s")
-print(f"Modin Time: {modin_time:.4f}s")
-print(f"Polars Time: {polars_time:.4f}s")
-print(f"FireDucks (Pandas) Time: {fireducks_time:.4f}s")
-
-# Plot
+# Plot results
 labels = ['Pandas', 'Modin', 'Polars', 'FireDucks (Pandas)']
-times = [pandas_time, modin_time, polars_time, fireducks_time]
+times  = [pandas_time, modin_time, polars_time, fireducks_time]
+
+plt.figure(figsize=(8, 6))
 plt.bar(labels, times, color=['blue', 'green', 'red', 'orange'])
 plt.ylabel("Time (seconds)")
 plt.title("Performance Comparison: Pandas vs. Modin vs. Polars vs. FireDucks")
-plt.show
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
