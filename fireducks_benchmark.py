@@ -9,26 +9,24 @@ os.environ["MODIN_ENGINE"] = "ray"
 import pandas as pd
 import modin.pandas as mpd
 import polars as pl
+import fireducks
+import fireducks.pandas as fd
+from fireducks.core import get_fireducks_options
+
 import numpy as np
 import ray
 import time
 import matplotlib.pyplot as plt
 
-import fireducks
-from fireducks.core import get_fireducks_options
-
 # ── FireDucks “Benchmark Mode” Setup ────────────────────────────────────────────
-# 1) Grab the options object
-fireducks_options = get_fireducks_options()
-# 2) Enable benchmark mode
-fireducks_options.set_benchmark_mode(True)
-# 3) Helper to force any lazy computation
+get_fireducks_options().set_benchmark_mode(True)
+
+# Helper to force any lazy computation
 def evaluate(df):
     try:
         df._evaluate()
     except AttributeError:
         pass
-# ────────────────────────────────────────────────────────────────────────────────
 
 # Sample data creation
 num_rows = 10**6
@@ -40,6 +38,7 @@ columns = [f'col_{i}' for i in range(num_cols)]
 pandas_df = pd.DataFrame(data, columns=columns)
 modin_df = mpd.DataFrame(data, columns=columns)
 polars_df = pl.DataFrame(data, schema=columns)
+fireducks_df = fd.DataFrame(data, columns=columns)  
 
 # Benchmark helper
 def benchmark_mean(df):
@@ -52,16 +51,16 @@ def benchmark_mean(df):
 pandas_time     = benchmark_mean(pandas_df)
 modin_time      = benchmark_mean(modin_df)
 polars_time     = benchmark_mean(polars_df)
-fireducks_time  = benchmark_mean(pandas_df)  # FireDucks instruments pandas_df
+fireducks_time  = benchmark_mean(fireducks_df)  
 
 # Print results
 print(f"Pandas Time:            {pandas_time:.4f} seconds")
 print(f"Modin Time:             {modin_time:.4f} seconds")
 print(f"Polars Time:            {polars_time:.4f} seconds")
-print(f"FireDucks (Pandas) Time:{fireducks_time:.4f} seconds")
+print(f"FireDucks Time:         {fireducks_time:.4f} seconds")
 
 # Plot results
-labels = ['Pandas', 'Modin', 'Polars', 'FireDucks (Pandas)']
+labels = ['Pandas', 'Modin', 'Polars', 'FireDucks']
 times  = [pandas_time, modin_time, polars_time, fireducks_time]
 
 plt.figure(figsize=(8, 6))
